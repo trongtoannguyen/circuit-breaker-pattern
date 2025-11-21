@@ -23,5 +23,6 @@
 
     <modules>
         <module>circuit-breaker</module>
+        <module>circuit-breaker-sample</module>
     </modules>
 </project>

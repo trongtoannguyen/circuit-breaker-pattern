@@ -1,6 +1,7 @@
 package example.circuitbreaker;
 
-import example.circuitbreaker.exceptions.CircuitBreakerException;
+import example.circuitbreaker.exceptions.CircuitBreakerExecutionException;
+import example.circuitbreaker.exceptions.CircuitBreakerInterruptedException;
 import example.circuitbreaker.exceptions.CircuitBreakerTimeoutException;
 import example.circuitbreaker.states.CircuitBreakerState;
 
@@ -8,6 +9,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -21,7 +23,7 @@ public class DefaultCircuitBreakerInvoker implements CircuitBreakerInvoker {
     private final ScheduledExecutorService scheduledExecutor;
     private volatile ScheduledFuture<?> timerHandle;
 
-    public DefaultCircuitBreakerInvoker() {
+    public DefaultCircuitBreakerInvoker(Executor executor) {
         this.scheduledExecutor = Executors.newScheduledThreadPool(1, r -> {
             Thread thread = new Thread(r);
             thread.setDaemon(true);
@@ -86,11 +88,12 @@ public class DefaultCircuitBreakerInvoker implements CircuitBreakerInvoker {
         } catch (TimeoutException e) {
             throw new CircuitBreakerTimeoutException("Invocation time out", e.getCause());
         } catch (ExecutionException e) {
-            throw new CircuitBreakerException("Invocation failed", e);
+            throw new CircuitBreakerExecutionException("Invocation execution failed", e.getCause());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CircuitBreakerException("Invocation interrupted", e);
+            throw new CircuitBreakerInterruptedException("Invocation interrupted", e);
         } finally {
+            // todo: review method boolean param
             tFuture.cancel(true);
         }
     }

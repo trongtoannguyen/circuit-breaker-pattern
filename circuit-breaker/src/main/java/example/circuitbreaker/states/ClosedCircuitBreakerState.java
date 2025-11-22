@@ -20,16 +20,16 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
     private final CircuitBreakerInvoker invoker;
 
     // max time for each invocation
-    private final Duration timeout;
+    private final Duration invocationTimeout;
 
     // thread-safe failure counter
     private final AtomicInteger failures = new AtomicInteger(0);
 
-    public ClosedCircuitBreakerState(int maxFailures, CircuitBreakerSwitch switcher, CircuitBreakerInvoker invoker, Duration timeout) {
+    public ClosedCircuitBreakerState(int maxFailures, CircuitBreakerSwitch switcher, CircuitBreakerInvoker invoker, Duration invocationTimeout) {
         this.maxFailures = maxFailures;
         this.switcher = switcher;
         this.invoker = invoker;
-        this.timeout = timeout;
+        this.invocationTimeout = invocationTimeout;
     }
 
     /**
@@ -63,16 +63,16 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
 
     @Override
     public void invoke(Runnable action) {
-        invoker.invokeThrough(this, action, timeout);
+        invoker.invokeThrough(this, action, invocationTimeout);
     }
 
     @Override
     public <T> T invoke(Supplier<T> func) {
-        return invoker.invokeThrough(this, func, timeout);
+        return invoker.invokeThrough(this, func, invocationTimeout);
     }
 
     @Override
     public <T> CompletableFuture<T> invokeAsync(Supplier<CompletableFuture<T>> func) {
-        return invoker.invokeThroughAsync(this, func, timeout);
+        return invoker.invokeThroughAsync(this, func, invocationTimeout);
     }
 }

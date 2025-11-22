@@ -7,6 +7,7 @@ import example.circuitbreaker.states.OpenCircuitBreakerState;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -18,18 +19,16 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
     private final CircuitBreakerState closedState;
     private final CircuitBreakerState openState;
     private final CircuitBreakerState halfOpenState;
-    private final CircuitBreakerListener eventListener;
     private final AtomicReference<CircuitBreakerState> currentState;
 
-    public DefaultCircuitBreaker(int maxFailureThreshold, CircuitBreakerSwitch switcher, CircuitBreakerListener eventListener,
-                                 Duration resetTimeOut, AtomicReference<CircuitBreakerState> currentState) {
-        CircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker();
+    private CircuitBreakerListener eventListener;
 
-        this.closedState = new ClosedCircuitBreakerState(maxFailureThreshold, switcher, invoker, resetTimeOut);
-        this.openState = new OpenCircuitBreakerState();
-        this.halfOpenState = new HalfOpenCircuitBreakerState();
-        this.eventListener = eventListener;
-        this.currentState = currentState;
+    public DefaultCircuitBreaker(Executor executor, int maxFailures, Duration invocationTimeout) {
+        DefaultCircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker(executor);
+        closedState = new ClosedCircuitBreakerState(maxFailures, this, invoker, invocationTimeout);
+        openState = new OpenCircuitBreakerState();
+        halfOpenState = new HalfOpenCircuitBreakerState();
+        currentState = new AtomicReference<>(closedState);
     }
 
     public CircuitBreakerState getOpenState() {

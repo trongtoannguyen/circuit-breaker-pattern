@@ -124,28 +124,7 @@ public class DefaultCircuitBreakerInvoker implements CircuitBreakerInvoker {
         CompletableFuture<T> future = func.get();
 
         // apply timeout
-        return timeOutAfter(future, timeout);
-    }
-
-    private <T> CompletableFuture<T> timeOutAfter(CompletableFuture<T> future, Duration timeout) {
-        Objects.requireNonNull(future);
-
-        //treat as "no timeout"
-        if (timeout.isZero() || timeout.isNegative()) {
-            return future;
-        }
-
-        CompletableFuture<T> timeoutFuture = new CompletableFuture<>();
-        ScheduledFuture<Boolean> timeoutHandle = scheduledExecutor.schedule(
-                () -> timeoutFuture.completeExceptionally(new CircuitBreakerTimeoutException("Invocation time out")),
-                timeout.toMillis(),
-                TimeUnit.MILLISECONDS
-        );
-
-        // cancel timeout task when the future completes first
-        future.whenComplete((t, throwable) -> timeoutHandle.cancel(false));
-
-        return future.applyToEither(timeoutFuture, t -> t); // when either completes, return its result
+        return CompletableFutureUtil.timeOutAfter(future, timeout);
     }
 
     //helper method to cancel any existing timer

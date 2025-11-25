@@ -25,7 +25,7 @@ public class App {
     }
 
     public static void main(String[] args) {
-        ScheduledExecutorService myExecutor = Executors.newScheduledThreadPool(3);
+        ScheduledExecutorService myExecutor = Executors.newScheduledThreadPool(1);
         App app = new App(myExecutor);
         app.demo();
     }

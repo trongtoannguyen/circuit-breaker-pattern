@@ -18,10 +18,10 @@ import java.util.function.Supplier;
  * Hello world!
  */
 public class App {
-    private final ScheduledExecutorService executor;
+    private final ScheduledExecutorService scheduledExecutorService;
 
-    public App(ScheduledExecutorService executor) {
-        this.executor = executor;
+    public App(ScheduledExecutorService scheduledExecutorService) {
+        this.scheduledExecutorService = scheduledExecutorService;
     }
 
     public static void main(String[] args) {
@@ -33,10 +33,10 @@ public class App {
     private void demo() {
         var externalService = new ExternalService();
         var circuitBreaker = new DefaultCircuitBreaker(
-                executor,
+                scheduledExecutorService,
                 2, // max 2 failures before open the circuit
-                Duration.ofMillis(10) // in 10ms must be completed
-        );
+                Duration.ofMillis(10), // in 10 ms must be completed
+                Duration.ofMillis(100));
 
         System.out.println("=== Synchronous Execution Demo ===");
         tryExecute(circuitBreaker, externalService::get);
@@ -49,6 +49,7 @@ public class App {
         });
         tryExecute(circuitBreaker, externalService::get);
 
+        System.out.println();
         System.out.println("===Asynchronous Execution Demo ====");
         tryExecuteAsync(circuitBreaker, externalService::getAsync)
                 .thenRun(() -> tryExecuteAsync(circuitBreaker, () -> delayAsync(100)))

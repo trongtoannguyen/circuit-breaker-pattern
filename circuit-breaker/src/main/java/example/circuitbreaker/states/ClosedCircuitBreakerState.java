@@ -25,7 +25,7 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
     // thread-safe failure counter
     private final AtomicInteger failures = new AtomicInteger(0);
 
-    public ClosedCircuitBreakerState(int maxFailures, CircuitBreakerSwitch switcher, CircuitBreakerInvoker invoker, Duration invocationTimeout) {
+    public ClosedCircuitBreakerState(CircuitBreakerSwitch switcher, CircuitBreakerInvoker invoker, int maxFailures, Duration invocationTimeout) {
         this.maxFailures = maxFailures;
         this.switcher = switcher;
         this.invoker = invoker;
@@ -38,7 +38,7 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
      */
     @Override
     public void enter() {
-        failures.set(0);
+        resetFailures();
     }
 
     /**
@@ -58,7 +58,7 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
      */
     @Override
     public void invocationSucceeds() {
-        failures.set(0);
+        resetFailures();
     }
 
     @Override
@@ -74,5 +74,9 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
     @Override
     public <T> CompletableFuture<T> invokeAsync(Supplier<CompletableFuture<T>> func) {
         return invoker.invokeThroughAsync(this, func, invocationTimeout);
+    }
+
+    private void resetFailures() {
+        failures.set(0);
     }
 }

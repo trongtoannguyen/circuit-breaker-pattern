@@ -7,7 +7,7 @@ import example.circuitbreaker.states.OpenCircuitBreakerState;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -23,32 +23,12 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
 
     private CircuitBreakerListener eventListener;
 
-    public DefaultCircuitBreaker(Executor executor, int maxFailures, Duration invocationTimeout) {
-        DefaultCircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker(executor);
-        closedState = new ClosedCircuitBreakerState(maxFailures, this, invoker, invocationTimeout);
-        openState = new OpenCircuitBreakerState();
+    public DefaultCircuitBreaker(ScheduledExecutorService scheduledExecutorService, int maxFailures, Duration invocationTimeout, Duration circuitResetTimeout) {
+        CircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker(scheduledExecutorService);
+        closedState = new ClosedCircuitBreakerState(this, invoker, maxFailures, invocationTimeout);
+        openState = new OpenCircuitBreakerState(this, invoker, circuitResetTimeout);
         halfOpenState = new HalfOpenCircuitBreakerState();
         currentState = new AtomicReference<>(closedState);
-    }
-
-    public CircuitBreakerState getOpenState() {
-        return openState;
-    }
-
-    public CircuitBreakerState getHalfOpenState() {
-        return halfOpenState;
-    }
-
-    public CircuitBreakerState getClosedState() {
-        return closedState;
-    }
-
-    public CircuitBreakerListener getEventListener() {
-        return eventListener;
-    }
-
-    public AtomicReference<CircuitBreakerState> getCurrentState() {
-        return currentState;
     }
 
     @Override
@@ -105,5 +85,9 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
             return true;
         }
         return false;
+    }
+
+    public void setEventListener(CircuitBreakerListener eventListener) {
+        this.eventListener = eventListener;
     }
 }

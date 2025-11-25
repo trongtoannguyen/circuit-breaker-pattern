@@ -61,4 +61,8 @@ circuit-breaker
 
 ### 3. Logic Components
 
-- `CircuitBreakerInvoker`/`DefaultCircuitBreakerInvoker`
+- `CircuitBreakerInvoker`/`DefaultCircuitBreakerInvoker`: Handle low-level execution of the user's code.
+  They are responsible for invoking the unsafe function calls, catch exceptions, and notify the circuit breaker of
+  success or failure.
+- `CircuitBreakerListener`: An observer interface used to receive notifications when states changed, it then notifies
+  these changes to the registered listeners, e.g., logging or metrics systems.

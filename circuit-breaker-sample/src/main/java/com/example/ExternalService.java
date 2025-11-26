@@ -5,12 +5,10 @@ import java.util.concurrent.CompletableFuture;
 public class ExternalService {
 
     public void get() {
-        throw new RuntimeException("External service failed");
+        throw new RuntimeException();
     }
 
     public CompletableFuture<Void> getAsync() {
-        return CompletableFuture.failedFuture(
-                new RuntimeException("Async External service failed")
-        );
+        return CompletableFuture.failedFuture(new RuntimeException());
     }
 }

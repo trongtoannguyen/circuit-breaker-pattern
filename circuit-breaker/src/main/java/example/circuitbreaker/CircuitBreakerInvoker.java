@@ -35,6 +35,8 @@ public interface CircuitBreakerInvoker {
     /**
      * Executes the provided function through the specified CircuitBreaker state with a timeout.
      * The function will be invoked according to the rules and behavior defined by the given CircuitBreakerState.
+     *
+     * @return the result of the function execution.
      */
     <T> T invokeThrough(CircuitBreakerState state, Supplier<T> func, Duration timeout);
 

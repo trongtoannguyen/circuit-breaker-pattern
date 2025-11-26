@@ -27,7 +27,7 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
         CircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker(scheduledExecutorService);
         closedState = new ClosedCircuitBreakerState(this, invoker, maxFailures, invocationTimeout);
         openState = new OpenCircuitBreakerState(this, invoker, circuitResetTimeout);
-        halfOpenState = new HalfOpenCircuitBreakerState();
+        halfOpenState = new HalfOpenCircuitBreakerState(this, invoker, invocationTimeout);
         currentState = new AtomicReference<>(closedState);
     }
 

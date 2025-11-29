@@ -23,6 +23,14 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
 
     private CircuitBreakerListener eventListener;
 
+    /**
+     * Constructs a DefaultCircuitBreaker with the specified parameters.
+     *
+     * @param scheduledExecutorService the ScheduledExecutorService for scheduling tasks
+     * @param maxFailures              the maximum number of failures before opening the circuit
+     * @param invocationTimeout        the timeout duration for each invocation
+     * @param circuitResetTimeout      time interval after which the circuit attempts to close circuit.
+     */
     public DefaultCircuitBreaker(ScheduledExecutorService scheduledExecutorService, int maxFailures, Duration invocationTimeout, Duration circuitResetTimeout) {
         CircuitBreakerInvoker invoker = new DefaultCircuitBreakerInvoker(scheduledExecutorService);
         closedState = new ClosedCircuitBreakerState(this, invoker, maxFailures, invocationTimeout);

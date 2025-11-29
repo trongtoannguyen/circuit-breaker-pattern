@@ -2,8 +2,6 @@ package com.example;
 
 import example.circuitbreaker.CircuitBreaker;
 import example.circuitbreaker.DefaultCircuitBreaker;
-import example.circuitbreaker.exceptions.CircuitBreakerException;
-import example.circuitbreaker.exceptions.CircuitBreakerExecutionException;
 import example.circuitbreaker.exceptions.CircuitBreakerInterruptedException;
 import example.circuitbreaker.exceptions.CircuitBreakerOpenException;
 import example.circuitbreaker.exceptions.CircuitBreakerTimeoutException;
@@ -12,6 +10,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -38,7 +37,55 @@ public class App {
     private static void shutdownExecutor(ScheduledExecutorService executor) {
         System.out.println("Shutting down executor...");
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                System.err.println("Task did not complete, forcing shutdown...");
+                executor.shutdownNow();
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("Executor did not terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
         System.out.println("Executor shut down.");
+    }
+
+    private static void delay(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CircuitBreakerInterruptedException();
+        }
+    }
+
+    private static void tryExecute(DefaultCircuitBreaker breaker, Runnable action) {
+        try {
+            breaker.execute(action);
+        } catch (CircuitBreakerTimeoutException e) {
+            System.out.println("CircuitBreakerTimeoutException");
+        } catch (CircuitBreakerOpenException e) {
+            System.out.println("CircuitBreakerOpenException");
+        } catch (Exception e) {
+            System.out.println("Exception");
+        }
+    }
+
+    private static CompletableFuture<Void> tryExecuteAsync(CircuitBreaker breaker, Supplier<CompletableFuture<Void>> supplier) {
+        try {
+            return breaker.executeAsync(supplier);
+        } catch (CircuitBreakerOpenException e) {
+            System.out.println("CircuitBreakerOpenException");
+            return CompletableFuture.failedFuture(e);
+        } catch (CircuitBreakerTimeoutException e) {
+            System.out.println("CircuitBreakerTimeoutException");
+            return CompletableFuture.failedFuture(e);
+        } catch (Exception e) {
+            System.out.println("Exception");
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private void demo() {
@@ -47,25 +94,20 @@ public class App {
                 scheduledExecutorService,
                 2, // max 2 failures before open the circuit
                 Duration.ofMillis(10), // in 10 ms must be completed
-                Duration.ofMillis(100));
+                Duration.ofMillis(100)); // after 100 ms attempt to close the circuit
 
         System.out.println("=== Synchronous Execution Demo ===");
         tryExecute(circuitBreaker, externalService::get);
-        tryExecute(circuitBreaker, () -> {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new CircuitBreakerInterruptedException();
-            }
-        });
+        tryExecute(circuitBreaker, () -> delay(100));
         tryExecute(circuitBreaker, externalService::get);
 
         System.out.println();
         System.out.println("===Asynchronous Execution Demo ====");
-        tryExecuteAsync(circuitBreaker, externalService::getAsync)
-                .thenRun(() -> tryExecuteAsync(circuitBreaker, () -> delayAsync(100)))
-                .thenRun(() -> tryExecuteAsync(circuitBreaker, externalService::getAsync)).join();
+        CompletableFuture<Void> future = tryExecuteAsync(circuitBreaker, externalService::getAsync)
+                .whenCompleteAsync((unused, throwable) -> tryExecuteAsync(circuitBreaker, () -> delayAsync(100)), scheduledExecutorService)
+                .whenCompleteAsync((unused, throwable) -> tryExecuteAsync(circuitBreaker, externalService::getAsync), scheduledExecutorService);
+
+        future.join();
     }
 
     private CompletableFuture<Void> delayAsync(long delayMillis) {
@@ -77,33 +119,5 @@ public class App {
                 throw new CircuitBreakerInterruptedException();
             }
         }, scheduledExecutorService);
-    }
-
-    private CompletableFuture<Void> tryExecuteAsync(CircuitBreaker breaker, Supplier<CompletableFuture<Void>> supplier) {
-        return breaker.executeAsync(supplier)
-                .exceptionally((throwable) -> {
-                    if (throwable.getCause() instanceof CircuitBreakerTimeoutException) {
-                        System.out.println("CircuitBreakerTimeoutException");
-                    } else if (throwable.getCause() instanceof CircuitBreakerOpenException) {
-                        System.out.println("CircuitBreakerOpenException");
-                    } else if (throwable.getCause() instanceof CircuitBreakerExecutionException) {
-                        System.out.println("CircuitBreakerExecutionException");
-                    } else if (throwable.getCause() instanceof CircuitBreakerException) {
-                        System.out.println("Other CircuitBreakerException");
-                    }
-                    return null;
-                });
-    }
-
-    private void tryExecute(DefaultCircuitBreaker breaker, Runnable action) {
-        try {
-            breaker.execute(action);
-        } catch (CircuitBreakerTimeoutException e) {
-            System.out.println("CircuitBreakerTimeoutException");
-        } catch (CircuitBreakerOpenException e) {
-            System.out.println("CircuitBreakerOpenException");
-        } catch (Exception e) {
-            System.out.println("Exception");
-        }
     }
 }

@@ -35,14 +35,26 @@ public final class CompletableFutureUtil {
         Objects.requireNonNull(timeout);
 
         // #1: infinite timeout or future already completed then treat as "no timeout"
-        if (timeout.isZero() || timeout.isNegative()) {
+        if (future.isDone() || timeout.equals(Duration.ofSeconds(Long.MAX_VALUE)) ||
+                timeout.toMillis() == Long.MAX_VALUE) {
             return future;
+        }
+
+        // zero timeout or negative timeout treat as "timed out"
+        if (timeout.isZero() || timeout.isNegative()) {
+            CompletableFuture<T> timeoutFuture = new CompletableFuture<>();
+            timeoutFuture.completeExceptionally(new CircuitBreakerTimeoutException("Invocation time out"));
+            return timeoutFuture;
         }
 
         // #2: set up timeout future, throw exception if the future does not complete in timeout duration
         CompletableFuture<T> timeoutFuture = new CompletableFuture<>();
-        ScheduledFuture<Boolean> timeoutHandle = scheduledExecutor.schedule(
-                () -> timeoutFuture.completeExceptionally(new CircuitBreakerTimeoutException("Invocation time out")),
+        ScheduledFuture<?> timeoutHandle = scheduledExecutor.schedule(
+                () -> {
+                    if (!timeoutFuture.isDone()) {
+                        timeoutFuture.completeExceptionally(new CircuitBreakerTimeoutException("Invocation time out"));
+                    }
+                },
                 timeout.toMillis(),
                 TimeUnit.MILLISECONDS
         );
@@ -50,7 +62,6 @@ public final class CompletableFutureUtil {
         // cancel timeout future task if the original future completes first
         future.whenComplete((t, throwable) -> {
             timeoutHandle.cancel(false);
-            System.out.println("Cancelled timeout task");
         });
 
         return future.applyToEither(timeoutFuture, t -> t); // when either completes, return its result

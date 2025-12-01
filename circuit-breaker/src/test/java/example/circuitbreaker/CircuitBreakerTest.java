@@ -7,11 +7,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CircuitBreakerTest {
@@ -65,7 +67,7 @@ public class CircuitBreakerTest {
         }
 
         @Test
-        void resetAfterTimeout() {
+        void resetState() {
             for (int i = 0; i < MAX_FAILURES; i++) {
                 assertThrows(Exception.class, () -> sut.execute(throwAction));
             }
@@ -88,6 +90,7 @@ public class CircuitBreakerTest {
             try {
                 Thread.sleep(INVOKE_TIMEOUT.toMillis() + 100);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
             return new Object();
@@ -119,7 +122,7 @@ public class CircuitBreakerTest {
         }
 
         @Test
-        void resetAfterTimeout() {
+        void resetState() {
             for (int i = 0; i < MAX_FAILURES; i++) {
                 assertThrows(Exception.class, () -> sut.execute(throwFunc));
             }
@@ -133,4 +136,60 @@ public class CircuitBreakerTest {
         }
     }
 
+    @Nested
+    class ExecuteAsyncActionTest {
+        //@formatter:off
+        private final Supplier<CompletableFuture<Void>> anySupplier = () -> CompletableFuture.completedFuture(null);
+        private final Supplier<CompletableFuture<Void>> timeoutSupplier = () -> CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(INVOKE_TIMEOUT.toMillis() + 100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }, executor);
+        private final Supplier<CompletableFuture<Void>> throwSupplier = () -> {throw new RuntimeException();};
+        //@formatter:on
+
+        @Test
+        void successfulExecution() {
+            for (int i = 0; i < 100; i++) {
+                assertDoesNotThrow(() -> sut.executeAsync(anySupplier).join());
+            }
+        }
+
+        @Test
+        void failures() {
+            for (int i = 0; i < MAX_FAILURES; i++) {
+                assertThrows(Exception.class, () -> sut.executeAsync(throwSupplier).join());
+            }
+            assertThrows(CircuitBreakerOpenException.class, () -> sut.executeAsync(anySupplier).join());
+        }
+
+        @Test
+        void timeouts() {
+            for (int i = 0; i < MAX_FAILURES; i++) {
+                Exception ex = assertThrows(Exception.class, () -> sut.executeAsync(timeoutSupplier).join());
+                assertInstanceOf(CircuitBreakerTimeoutException.class, ex.getCause());
+            }
+            assertThrows(CircuitBreakerOpenException.class, () -> sut.executeAsync(anySupplier).join());
+        }
+
+        @Test
+        void resetState() {
+            for (int i = 0; i < MAX_FAILURES; i++) {
+                assertThrows(Exception.class, () -> sut.executeAsync(throwSupplier).join());
+            }
+
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(RESET_TIMEOUT.toMillis());
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }).join();
+
+            assertDoesNotThrow(() -> sut.executeAsync(anySupplier).join());
+        }
+    }
 }

@@ -39,6 +39,14 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
         currentState = new AtomicReference<>(closedState);
     }
 
+    public CircuitBreakerListener getEventListener() {
+        return eventListener;
+    }
+
+    public void setEventListener(CircuitBreakerListener eventListener) {
+        this.eventListener = eventListener;
+    }
+
     @Override
     public void execute(Runnable action) {
         if (action == null) {
@@ -93,9 +101,5 @@ public class DefaultCircuitBreaker implements CircuitBreaker, CircuitBreakerSwit
             return true;
         }
         return false;
-    }
-
-    public void setEventListener(CircuitBreakerListener eventListener) {
-        this.eventListener = eventListener;
     }
 }

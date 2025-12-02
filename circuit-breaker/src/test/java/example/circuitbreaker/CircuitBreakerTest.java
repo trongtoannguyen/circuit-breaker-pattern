@@ -181,6 +181,7 @@ public class CircuitBreakerTest {
                 assertThrows(Exception.class, () -> sut.executeAsync(throwSupplier).join());
             }
 
+            assertThrows(CircuitBreakerOpenException.class, () -> sut.executeAsync(anySupplier));
             CompletableFuture.runAsync(() -> {
                 try {
                     Thread.sleep(RESET_TIMEOUT.toMillis());

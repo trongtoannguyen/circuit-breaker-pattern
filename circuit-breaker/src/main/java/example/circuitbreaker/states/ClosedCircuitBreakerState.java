@@ -25,6 +25,10 @@ public class ClosedCircuitBreakerState implements CircuitBreakerState {
     // thread-safe failure counter
     private final AtomicInteger failures = new AtomicInteger(0);
 
+    public AtomicInteger getFailures() {
+        return failures;
+    }
+
     public ClosedCircuitBreakerState(CircuitBreakerSwitch switcher, CircuitBreakerInvoker invoker, int maxFailures, Duration invocationTimeout) {
         this.maxFailures = maxFailures;
         this.switcher = switcher;

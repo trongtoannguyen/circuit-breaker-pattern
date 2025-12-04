@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class CircuitBreakerInvokerTest {
+    private static final Duration TIMEOUT = Duration.ofMillis(100);
     private CircuitBreakerInvoker sut;
     private ScheduledExecutorService executor;
 
@@ -64,7 +65,7 @@ class CircuitBreakerInvokerTest {
                 assertThrows(Exception.class, () -> {
                     sut.invokeThrough(state, () -> {
                         throw new RuntimeException();
-                    }, Duration.ofMillis(100));
+                    }, TIMEOUT);
                 });
 
                 verify(state, times(1)).invocationFails();
@@ -75,7 +76,7 @@ class CircuitBreakerInvokerTest {
             void actionSuccessfulInvocation() {
                 assertDoesNotThrow(() -> sut.invokeThrough(state,
                         () -> System.out.println("Any action run successfully"),
-                        Duration.ofMillis(100)));
+                        TIMEOUT));
 
                 verify(state).invocationSucceeds();
                 verify(state, never()).invocationFails();
@@ -87,7 +88,7 @@ class CircuitBreakerInvokerTest {
                     throw new RuntimeException();
                 };
                 assertThrows(Exception.class, () ->
-                        sut.invokeThrough(state, supplier, Duration.ofMillis(100)));
+                        sut.invokeThrough(state, supplier, TIMEOUT));
                 verify(state).invocationFails();
                 verify(state, never()).invocationSucceeds();
             }
@@ -96,7 +97,7 @@ class CircuitBreakerInvokerTest {
             void supplierSuccessfulInvocation() {
                 Supplier<?> supplier = Object::new;
                 assertNotNull(
-                        assertDoesNotThrow(() -> sut.invokeThrough(state, supplier, Duration.ofMillis(100))));
+                        assertDoesNotThrow(() -> sut.invokeThrough(state, supplier, TIMEOUT)));
                 verify(state).invocationSucceeds();
                 verify(state, never()).invocationFails();
             }
@@ -113,7 +114,7 @@ class CircuitBreakerInvokerTest {
                 Supplier<CompletableFuture<Void>> func = () -> {
                     throw new RuntimeException();
                 };
-                assertThrows(Exception.class, () -> sut.invokeThroughAsync(state, func, Duration.ofMillis(100)));
+                assertThrows(Exception.class, () -> sut.invokeThroughAsync(state, func, TIMEOUT));
                 verify(state).invocationFails();
                 verify(state, never()).invocationSucceeds();
             }
@@ -123,7 +124,7 @@ class CircuitBreakerInvokerTest {
                 Supplier<CompletableFuture<Void>> func = () ->
                         CompletableFuture.completedFuture(null);
                 assertDoesNotThrow(() -> {
-                    sut.invokeThroughAsync(state, func, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS);
+                    sut.invokeThroughAsync(state, func, TIMEOUT).get(100, TimeUnit.MILLISECONDS);
                 });
                 verify(state).invocationSucceeds();
                 verify(state, never()).invocationFails();
@@ -135,7 +136,7 @@ class CircuitBreakerInvokerTest {
                     throw new RuntimeException();
                 };
                 assertNotNull(
-                        assertThrows(Exception.class, () -> sut.invokeThroughAsync(state, supplier, Duration.ofMillis(100))));
+                        assertThrows(Exception.class, () -> sut.invokeThroughAsync(state, supplier, TIMEOUT)));
                 verify(state).invocationFails();
                 verify(state, never()).invocationSucceeds();
             }
@@ -144,7 +145,7 @@ class CircuitBreakerInvokerTest {
             void supplierSuccessfulInvocation() {
                 Object expectedResult = new Object();
                 Supplier<CompletableFuture<Object>> supplier = () -> CompletableFuture.completedFuture(expectedResult);
-                Object result = assertDoesNotThrow(() -> sut.invokeThroughAsync(state, supplier, Duration.ofMillis(100))
+                Object result = assertDoesNotThrow(() -> sut.invokeThroughAsync(state, supplier, TIMEOUT)
                         .get(100, TimeUnit.MILLISECONDS));
                 assertEquals(expectedResult, result);
                 verify(state).invocationSucceeds();

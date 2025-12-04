@@ -61,7 +61,7 @@ public class App {
         }
     }
 
-    private static void tryExecute(DefaultCircuitBreaker breaker, Runnable action) {
+    private static void tryExecute(CircuitBreaker breaker, Runnable action) {
         try {
             breaker.execute(action);
         } catch (CircuitBreakerTimeoutException e) {
@@ -97,15 +97,15 @@ public class App {
                 Duration.ofMillis(100)); // after 100 ms attempt to close the circuit
 
         System.out.println("=== Synchronous Execution Demo ===");
-        tryExecute(circuitBreaker, externalService::get);
+        tryExecute(circuitBreaker, externalService::getError);
         tryExecute(circuitBreaker, () -> delay(100));
-        tryExecute(circuitBreaker, externalService::get);
+        tryExecute(circuitBreaker, externalService::getError);
 
         System.out.println();
         System.out.println("===Asynchronous Execution Demo ====");
-        CompletableFuture<Void> future = tryExecuteAsync(circuitBreaker, externalService::getAsync)
+        CompletableFuture<Void> future = tryExecuteAsync(circuitBreaker, externalService::getErrorAsync)
                 .whenCompleteAsync((unused, throwable) -> tryExecuteAsync(circuitBreaker, () -> delayAsync(100)), scheduledExecutorService)
-                .whenCompleteAsync((unused, throwable) -> tryExecuteAsync(circuitBreaker, externalService::getAsync), scheduledExecutorService);
+                .whenCompleteAsync((unused, throwable) -> tryExecuteAsync(circuitBreaker, externalService::getErrorAsync), scheduledExecutorService);
         try {
             future.join();
         } catch (Exception e) {

@@ -7,11 +7,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ExternalService {
 
-    public void get() {
+    public void getError() {
         throw new RuntimeException();
     }
 
-    public CompletableFuture<Void> getAsync() {
+    public CompletableFuture<Void> getErrorAsync() {
         return CompletableFuture.failedFuture(new RuntimeException());
     }
 }

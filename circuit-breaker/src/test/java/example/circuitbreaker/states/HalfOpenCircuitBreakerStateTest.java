@@ -13,6 +13,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,5 +89,36 @@ class HalfOpenCircuitBreakerStateTest {
     @Nested
     class StateInvokeAsyncTest {
 
+        @Test
+        void invokeFirstActionOnlyAsync() {
+            // define objects
+            Supplier<CompletableFuture<Boolean>> futureSupplier = () -> CompletableFuture.completedFuture(false);
+            InOrder inOrder = Mockito.inOrder(invoker);
+
+            // verify action result in order
+            sut.invokeAsync(futureSupplier);
+            inOrder.verify(invoker).invokeThroughAsync(same(sut), same(futureSupplier), eq(TIMEOUT));
+            inOrder.verifyNoMoreInteractions();
+
+            assertThrows(CircuitBreakerOpenException.class, () -> sut.invokeAsync(futureSupplier));
+            inOrder.verify(invoker, never()).invokeThroughAsync(same(sut), same(futureSupplier), eq(TIMEOUT));
+            inOrder.verifyNoMoreInteractions();
+        }
+
+        @Test
+        void invokeFirstFunctionOnlyAsync() {
+            Object expectedResult = new Object();
+            Supplier<CompletableFuture<Object>> futureSupplier = () -> CompletableFuture.completedFuture(expectedResult);
+            InOrder inOrder = Mockito.inOrder(invoker);
+
+            sut.invokeAsync(futureSupplier);
+            inOrder.verify(invoker).invokeThroughAsync(same(sut), same(futureSupplier), eq(TIMEOUT));
+            inOrder.verifyNoMoreInteractions();
+
+            //refuse latter action
+            assertThrows(CircuitBreakerOpenException.class, () -> sut.invokeAsync(futureSupplier));
+            inOrder.verify(invoker, never()).invokeThroughAsync(same(sut), same(futureSupplier), any());
+            inOrder.verifyNoMoreInteractions();
+        }
     }
 }
